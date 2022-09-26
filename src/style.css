@@ -1,0 +1,10 @@
+/* .popup{
+    margin-top: vh;
+} */
+
+.popupButton{
+    padding: 10px 20px;
+    font-size: 18px;
+    border-radius: 10px;
+    background-color: #4D76FF;
+}
