@@ -1,65 +1,164 @@
-var ques;
+ class Quiz {
+    constructor(questions) {
+        this.score = 0;
+        this.questions = questions;
+        this.currentQuestionIndex = 0;
+        this.color = "";
+    }
 
-$( document ).ready(function() {
-    $(".questionContainer").hide();
-    $.ajax({
-        url: 'https://opentdb.com/api.php?amount=10',
-        type: 'POST',
-        dataType: 'json',
-        success: function (data) {
-            ques = data;
-        }
-      });
-      $(".popupButton").click(function(){
-        $(".popup").fadeOut();
-        $("lottie-player").fadeOut();
-        $(".questionContainer").fadeIn();
-        addQuestions(ques);
-    });
-});
+    getCurrentQuestion() {
+        return this.questions[this.currentQuestionIndex];
+    }
 
-function addQuestions(data) {
-    var questionsAll = [];
-    $.each(data.results,function(i,questions){
-        options = assignData(questions);
-        if (options.length == 2){
-            options.push("Maybe");
-            options.push("Don't know");
+    guess(answer) {
+        if(this.getCurrentQuestion().isCorrectAnswer(answer)) {
+            this.score++;
+            this.color = "green";
+        } else {
+            this.color = "red";
         }
-        var q =  ' <div class="col"><div class="card h-90"><div class="card-body"><h5 class="card-header">'
-        +questions.question+
-        '</h5><p class="card-text"><br> <input class="form-check-input mx-1 my-2" type="radio" name="flexRadioDefault" id="flexRadioDefault1"><label class="form-check-label" for="flexRadioDefault1">'+
-        options[0]
-        +'</label><br><input class="form-check-input mx-1 my-2" type="radio" name="flexRadioDefault" id="flexRadioDefault1"><label class="form-check-label" for="flexRadioDefault1">'
-        +options[1]+
-        '</label><br><input class="form-check-input mx-1 my-2" type="radio" name="flexRadioDefault" id="flexRadioDefault1"><label class="form-check-label" for="flexRadioDefault1">'+
-        options[2]+'</label><br><input class="form-check-input mx-1 my-2" type="radio" name="flexRadioDefault" id="flexRadioDefault1"><label class="form-check-label" for="flexRadioDefault1">'+options[3]+'</label></p></div></div></div> '
-        questionsAll.push(q)
-    })
-    $(".questionContainer").append(questionsAll.join(""));
-    $(".questionContainer").show();
+        this.currentQuestionIndex++;
+    }
+
+    hasEnded() {
+        return this.currentQuestionIndex === this.questions.length;
+    }
 }
 
 
-function assignData(data) {
-    var question = data.question;
-    var correctAnswer = data.correct_answer;
-    var incorrectAnswers = data.incorrect_answers;
-    var allAnswers = incorrectAnswers.concat(correctAnswer);
-    var shuffledAnswers = shuffle(allAnswers);
-    console.log(shuffledAnswers);
-    return shuffledAnswers;
+class Question {
+    constructor(text, choices, answer) {
+        this.text = text;
+        this.choices = choices;
+        this.answer = answer;
+    }
+
+    isCorrectAnswer(choice) {
+        return this.answer === choice;
+    }
 }
 
+ class ProgressBar {
+    constructor(element, initialValue = 0) {
+        this.fillElement = element.querySelector("#progressBarFill");
+        this.setValue(initialValue);
+    }
+
+    setValue(newValue) {
+        if (newValue < 0) {
+            newValue = 0;
+        }
+        if (newValue > 100) {
+            newValue = 100;
+        }
+        this.value = newValue;
+        this.update();
+    }
+
+    update() {
+        const percentage = this.value + '%';
+        this.fillElement.style.width = percentage;
+    }
+ }
+
+
+// populate the quiz on the page
+function populate() {
+    if (quiz.hasEnded()) {
+        // show user's score
+        showScore();
+    } else {
+        // show the question
+        document.getElementById("question").innerHTML = quiz.getCurrentQuestion().text;
+        
+        // show the choices
+        const choices = quiz.getCurrentQuestion().choices;
+        for (let index = 0; index < choices.length; index++) {
+            document.getElementById("choice" + index).innerHTML = choices[index];
+            guessHandler("btn" + index, choices[index]);
+        }
+
+        // show progress
+        showProgress();
+        const progressBar = new ProgressBar(document.querySelector("#progressBar"));
+        progressBar.setValue(((quiz.currentQuestionIndex + 1) / quiz.questions.length) * 100);
+    }
+};
+
+
+// handle user's guesses on click
+function guessHandler(id, guess) {
+    const button = document.getElementById(id);
+
+    button.onclick = function() {
+        quiz.guess(guess);
+        
+        // button color changes to green if correct, red if incorrect
+        // delay loading of next question
+        button.style.backgroundColor = quiz.color;
+        setTimeout(function() {
+            button.style.backgroundColor = null;
+            populate();
+        }, 500);
+    }
+};
+
+
+function showProgress() {
+    const currentQuestionNum = quiz.currentQuestionIndex + 1;
+    document.getElementById("progress").innerHTML = "Question " + currentQuestionNum + " of " + quiz.questions.length;
+};
+
+
+function showScore() {
+    let quizOverHTML = "<h1 class='main-header'>Results</h1>";
+    quizOverHTML += "<h2 id='score'> Your score: " + quiz.score + "/" + quiz.questions.length + "</h2>";
+    quizOverHTML += "<div class='try-again'><a class='try-again-btn' href='index.html'>Try Again</a></div>"
+    document.getElementById("quiz").innerHTML = quizOverHTML;
+};
+
+
+// use Fisher-Yates algorithm to shuffle the answers in each question
+// so correct answer isn't always in same button position 
 function shuffle(array) {
-    var currentIndex = array.length, temporaryValue, randomIndex;
-    while (0 !== currentIndex) {
-        randomIndex = Math.floor(Math.random() * currentIndex);
-        currentIndex -= 1;
-        temporaryValue = array[currentIndex];
+    for (let currentIndex = array.length - 1; currentIndex > 0; currentIndex--) {
+        const randomIndex = Math.floor(Math.random() * currentIndex);
+
+        //swap element at randomIndex with the current element
+        const tempValue = array[currentIndex];
         array[currentIndex] = array[randomIndex];
-        array[randomIndex] = temporaryValue;
+        array[randomIndex] = tempValue;
     }
     return array;
+};
+
+
+
+// fetch the quiz data from JSON API
+async function fetchData() {
+    let response = await fetch("https://opentdb.com/api.php?amount=10");
+    if (!response.ok) {
+        throw new Error(`HTTP error status: ${response.status}`);
+    } else {
+        return await response.json();
+    }
 }
 
+let quiz;
+fetchData().then((data) => {
+    const results = data.results;
+    const questions = [];
+    results.forEach(function(result) {
+        const answers = result.incorrect_answers.concat(result.correct_answer);
+        shuffle(answers);
+        const question = new Question(result.question, answers, result.correct_answer);
+        questions.push(question);
+    });
+
+    // create the quiz
+    quiz = new Quiz(questions);
+
+    // display the quiz
+    populate();
+
+}).catch(err => console.log(err));
