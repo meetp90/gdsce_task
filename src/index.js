@@ -1,30 +1,3 @@
- class Quiz {
-    constructor(questions) {
-        this.score = 0;
-        this.questions = questions;
-        this.currentQuestionIndex = 0;
-        this.color = "";
-    }
-
-    getCurrentQuestion() {
-        return this.questions[this.currentQuestionIndex];
-    }
-
-    guess(answer) {
-        if(this.getCurrentQuestion().isCorrectAnswer(answer)) {
-            this.score++;
-            this.color = "green";
-        } else {
-            this.color = "red";
-        }
-        this.currentQuestionIndex++;
-    }
-
-    hasEnded() {
-        return this.currentQuestionIndex === this.questions.length;
-    }
-}
-
 
 class Question {
     constructor(text, choices, answer) {
@@ -35,6 +8,30 @@ class Question {
 
     isCorrectAnswer(choice) {
         return this.answer === choice;
+    }
+}
+
+class Quiz {
+    constructor(questions) {
+        this.score = 0;
+        this.questions = questions;
+        this.currentQuestionIndex = 0;
+        this.color = "";
+    }
+    getCurrentQuestion() {
+        return this.questions[this.currentQuestionIndex];
+    }
+    guess(answer) {
+        if(this.getCurrentQuestion().isCorrectAnswer(answer)) {
+            this.score++;
+            this.color = "green";
+        } else {
+            this.color = "red";
+        }
+        this.currentQuestionIndex++;
+    }
+    hasEnded() {
+        return this.currentQuestionIndex === this.questions.length;
     }
 }
 
@@ -61,40 +58,26 @@ class Question {
     }
  }
 
-
-// populate the quiz on the page
 function populate() {
     if (quiz.hasEnded()) {
-        // show user's score
         showScore();
     } else {
-        // show the question
         document.getElementById("question").innerHTML = quiz.getCurrentQuestion().text;
-        
-        // show the choices
         const choices = quiz.getCurrentQuestion().choices;
         for (let index = 0; index < choices.length; index++) {
             document.getElementById("choice" + index).innerHTML = choices[index];
             guessHandler("btn" + index, choices[index]);
         }
-
-        // show progress
         showProgress();
         const progressBar = new ProgressBar(document.querySelector("#progressBar"));
         progressBar.setValue(((quiz.currentQuestionIndex + 1) / quiz.questions.length) * 100);
     }
 };
 
-
-// handle user's guesses on click
 function guessHandler(id, guess) {
     const button = document.getElementById(id);
-
     button.onclick = function() {
         quiz.guess(guess);
-        
-        // button color changes to green if correct, red if incorrect
-        // delay loading of next question
         button.style.backgroundColor = quiz.color;
         setTimeout(function() {
             button.style.backgroundColor = null;
@@ -117,24 +100,22 @@ function showScore() {
     document.getElementById("quiz").innerHTML = quizOverHTML;
 };
 
-
-// use Fisher-Yates algorithm to shuffle the answers in each question
-// so correct answer isn't always in same button position 
 function shuffle(array) {
     for (let currentIndex = array.length - 1; currentIndex > 0; currentIndex--) {
         const randomIndex = Math.floor(Math.random() * currentIndex);
-
-        //swap element at randomIndex with the current element
         const tempValue = array[currentIndex];
         array[currentIndex] = array[randomIndex];
         array[randomIndex] = tempValue;
     }
+    if(array.length ==  2) {
+        array.push("maybe");
+        array.push("probably");
+    }
     return array;
+    
 };
 
 
-
-// fetch the quiz data from JSON API
 async function fetchData() {
     let response = await fetch("https://opentdb.com/api.php?amount=10");
     if (!response.ok) {
@@ -155,10 +136,6 @@ fetchData().then((data) => {
         questions.push(question);
     });
 
-    // create the quiz
     quiz = new Quiz(questions);
-
-    // display the quiz
     populate();
-
 }).catch(err => console.log(err));
